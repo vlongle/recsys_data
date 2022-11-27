@@ -70,6 +70,10 @@ class RouterEnv(gym.Env):
         batch_cls = routed_batch[:, 1]
         return (self.target_samples[batch_tasks, batch_cls] - self.current_samples[batch_tasks, batch_cls]) / self.target_samples[batch_tasks, batch_cls]
 
+    @property
+    def Q(self) -> np.ndarray:
+        return (self.target_samples - self.current_samples) / self.target_samples
+
     def step(self, action: np.ndarray) -> Tuple:
         assert action.shape[0] <= self.num_slates, "Action must be of size (<=num_slates, )"
         assert action.shape == (

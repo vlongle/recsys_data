@@ -1,9 +1,22 @@
 from env import RouterEnv
-from bandit import EmpiricalEstimator, PerArmExploration, Algorithm
+from bandit import (
+    EmpiricalEstimator,
+    PerArmExploration,
+    Algorithm,
+    NeuralEstimator,
+    RecurrentNeuralEstimator)
 from lightning_lite.utilities.seed import seed_everything
 import numpy as np
 from pprint import pprint
 
+"""
+TODO: 
+1. visualize the loss in the prediction of the Q values of
+- EmpiricalEstimator
+- NeuralEstimator
+- RecurrentEstimator
+2. Moving from bandit to RL.
+"""
 if __name__ == "__main__":
     seed_everything(0)
     num_tasks = 2
@@ -30,7 +43,9 @@ if __name__ == "__main__":
                          "num_tasks": num_tasks,
                          "num_classes": num_cls, })
 
-    estimator = EmpiricalEstimator(num_tasks, num_cls)
+    # estimator = EmpiricalEstimator(num_tasks, num_cls)
+    # estimator = NeuralEstimator(num_tasks, num_cls)
+    estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
     explore = PerArmExploration(num_tasks, num_cls, num_slates)
     algo = Algorithm(
         estimator,
@@ -41,15 +56,19 @@ if __name__ == "__main__":
     done = False
     cum_reward = 0
     cum_rewards = []
+    pred_losses = []
+    step = 0
     while not done:
         action = algo.predict(obs)
         next_obs, reward, done, info = env.step(action)
         cum_reward += reward
-        # print("obs:", obs, "action", action, "next_obs",
-        #       next_obs, "reward", info["rewards"], "done", done)
         algo.update_estimator(obs, action, info["rewards"])
         obs = next_obs
         cum_rewards.append(cum_reward)
+        pred_loss = (algo.estimator.Q - env.Q) ** 2
+        pred_losses.append(pred_loss)
+        print(f"step: {step}, cum_reward: {cum_reward}, pred_loss: {pred_loss}")
+        step += 1
 
     print("current samples after training:")
     print(env.current_samples)
