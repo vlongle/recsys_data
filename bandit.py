@@ -127,6 +127,10 @@ class PerArmExploration(ExplorationStrategy):
         return action
 
 
+class UniformEpsilonExploration(ExplorationStrategy):
+    pass
+
+
 class NeuralEstimator(Estimator):
     def __init__(self, num_tasks: int, num_cls: int):
         self.num_tasks = num_tasks
@@ -137,11 +141,13 @@ class NeuralEstimator(Estimator):
             nn.ReLU(),
             nn.Linear(32, 64),
             nn.ReLU(),
-            nn.Linear(64, 1),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
         )
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        print("Estimator num params: ", sum(p.numel()
+        print("Neural Estimator num params: ", sum(p.numel()
               for p in self.model.parameters()))
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
@@ -178,69 +184,64 @@ class RecurrentNeuralEstimator(Estimator):
         self.num_tasks = num_tasks
         self.num_cls = num_cls
         # use a LSTM to predict the Q value
+        self.state_embedder = nn.Linear(2, 32)
         self.internal_state_model = nn.LSTM(2, 32)
         self.model = nn.Sequential(
-            nn.Linear(32, 64),
+            nn.Linear(32 + 32, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
         )
         self.hiddens = None
+        self.last_user_state = torch.zeros(32)
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(
             list(self.internal_state_model.parameters()) + list(self.model.parameters()), lr=0.001)
 
-        print("Estimator Num params", sum(p.numel()
+        print("Recurrent Estimator Num params", sum(p.numel()
               for p in list(self.model.parameters()) + list(self.internal_state_model.parameters()) if p.requires_grad))
 
-    def forward(self, x, batch_first=True):
+    def forward(self, x):
         """
         Args:
             x: (batch_size, 2) array of (task, class) tuples where batch_first is True.
-            x: (seq_len, 2) array of (task, class) tuples where batch_first is False. This
-            is for updating the internal state.
         """
-        # convert x to (seq_len=1, batch_size, 2)
-        x
-        if batch_first:
-            x = x.unsqueeze(0)
-        else:
-            x = x.unsqueeze(1)
-        hiddens = self.hiddens
-        if batch_first and hiddens is not None:
-            # replicate the hidden state for the new batch
-            hiddens = (hiddens[0].repeat(1, x.shape[1], 1),
-                       hiddens[1].repeat(1, x.shape[1], 1))
-        out, hiddens = self.internal_state_model(x, hiddens)
-        return self.model(out.squeeze()), hiddens
+        # replicate self.user_state to (batch_size, 32)
+        user_state = self.last_user_state.repeat(x.shape[0], 1)
+        # concatenate user_state and x
+        x = self.state_embedder(x)
+        x = torch.cat([user_state, x], dim=1)
+        return self.model(x)
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
         if eval:
             self.model.eval()
             with torch.no_grad():
-                Q, _ = self.forward(torch.from_numpy(
-                    observations).float())
-                Q = Q.squeeze().numpy()
+                Q = self.forward(torch.from_numpy(
+                    observations).float()).squeeze().numpy()
         else:
             self.model.train()
-            Q, _ = self.forward(torch.from_numpy(
-                observations).float())
-            Q = Q.squeeze()
+            Q = self.forward(torch.from_numpy(
+                observations).float()).squeeze()
         return Q
 
     @property
     def Q(self) -> np.ndarray:
         return self.get_Q(np.array([[task, c] for task in range(self.num_tasks) for c in range(self.num_cls)]), eval=True).reshape(self.num_tasks, self.num_cls)
 
+    # TODO: for some reasons, there's a bug with accessing the graph the 2nd time??
     def update(self, observations: np.ndarray, actions: np.ndarray, rewards: np.ndarray):
         pred_Q = self.get_Q(observations, eval=False)[actions]
         loss = self.criterion(pred_Q, torch.from_numpy(rewards).float())
         self.optimizer.zero_grad()
+        # print("user_state", self.last_user_state)
+        # print("loss", loss)
         loss.backward()
         self.optimizer.step()
-        # update hidden state by feeding observations[actions] to the LSTM
-        with torch.no_grad():
-            _, self.hiddens = self.forward(torch.from_numpy(
-                observations[actions]).float(), batch_first=False)
+        # update self.last_user_state by feeding observations[actions] to the LSTM
+        user_states, hiddens = self.internal_state_model(
+            torch.from_numpy(observations[actions]).float(), self.hiddens)
+        self.hiddens = (hiddens[0].detach(), hiddens[1].detach())
+        self.last_user_state = user_states[-1]
 
 
 class Algorithm:

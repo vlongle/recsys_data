@@ -70,8 +70,8 @@ if __name__ == "__main__":
                          "num_classes": num_cls, })
 
     # estimator = EmpiricalEstimator(num_tasks, num_cls)
-    # estimator = NeuralEstimator(num_tasks, num_cls)
-    estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
+    estimator = NeuralEstimator(num_tasks, num_cls)
+    # estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
     explore = PerArmExploration(num_tasks, num_cls, num_slates)
     algo = Algorithm(
         estimator,

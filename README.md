@@ -23,3 +23,6 @@ Curriculum learning in the middle for other tasks.
 ## Appendix
 Examples of clustering:
 - Yahoo (https://www.youtube.com/watch?v=rDjCfQJ_sYY): divide users into 5 groups.
+
+More non-stationary env with bandits:
+https://www.yoanrussac.com/en/talk/talk1-ens/intro_linear_bandits.pdf
