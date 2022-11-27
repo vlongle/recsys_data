@@ -4,7 +4,8 @@ from bandit import (
     PerArmExploration,
     Algorithm,
     NeuralEstimator,
-    RecurrentNeuralEstimator)
+    RecurrentNeuralEstimator,
+    RecurrentNeuralEstimatorV0)
 from lightning_lite.utilities.seed import seed_everything
 import numpy as np
 from pprint import pprint
@@ -70,8 +71,9 @@ if __name__ == "__main__":
                          "num_classes": num_cls, })
 
     # estimator = EmpiricalEstimator(num_tasks, num_cls)
-    estimator = NeuralEstimator(num_tasks, num_cls)
-    # estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
+    # estimator = NeuralEstimator(num_tasks, num_cls)
+    estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
+    # estimator = RecurrentNeuralEstimatorV0(num_tasks, num_cls)
     explore = PerArmExploration(num_tasks, num_cls, num_slates)
     algo = Algorithm(
         estimator,
