@@ -1,11 +1,15 @@
 from env import RouterEnv
-from bandit import (
+from bandit_algo import BanditAlgorithm
+from preference_estimator import (
     EmpiricalEstimator,
-    PerArmExploration,
-    Algorithm,
     NeuralEstimator,
     RecurrentNeuralEstimator,
-    RecurrentNeuralEstimatorV0)
+    RecurrentNeuralEstimatorV0,
+)
+from exploration_strategy import (
+    PerArmExploration,
+    UniformEpsilonExploration,
+)
 from lightning_lite.utilities.seed import seed_everything
 import numpy as np
 from pprint import pprint
@@ -19,30 +23,6 @@ TODO:
 - RecurrentEstimator
 2. Moving from bandit to RL.
 
-
-TODO: BUG?: RecurrentEstimator is very bad. Check if it is behaving correctly.
-- Yes! Saving hidden_states based on the sequence and old weights are NOT
-ideal since we cannot use the latest backprop model.
-We need to consult recurrent RL to see how to efficiently implement this!
-
-
-LSTM workload:
-- prediction phase: Q(o | h) 
-- Update phase: update Q, and feed more to h and recompute h.
-
-DEBUG:
-- Prediction: 
-    1. within one prediction step, o1 = o2 means Q(o1) = Q(o2) [OK]
-    2. In the next prediction step (if the Q is updated), then Q(o1) != Q(o2) [OK]
-
-- Update phase:
-    1. Check that the weights of Q (loss actually backpropagated through LSTM) is updated such that Q_{t}(o_{1:t}) != Q_{t+1}(o_{t:t}) for the same sequence o1,...,ot.
-    or just look that the LSTM weight to see if it is updated.
-    2. Check that the hidden state actually changes by feeding more obs to the LSTM by checking that 
-    Q(h_{t+1}) != Q(h_{t}) for the same params Q.
-
-Maybe do the concat to the model as before, treating the user internal state and the current considerations
-differently like Google top-k REINFORCE paper.
 """
 if __name__ == "__main__":
     seed_everything(0)
@@ -70,12 +50,13 @@ if __name__ == "__main__":
                          "num_tasks": num_tasks,
                          "num_classes": num_cls, })
 
-    # estimator = EmpiricalEstimator(num_tasks, num_cls)
+    estimator = EmpiricalEstimator(num_tasks, num_cls)
     # estimator = NeuralEstimator(num_tasks, num_cls)
-    estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
+    # estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimatorV0(num_tasks, num_cls)
     explore = PerArmExploration(num_tasks, num_cls, num_slates)
-    algo = Algorithm(
+    # explore = UniformEpsilonExploration(num_tasks, num_cls, num_slates)
+    algo = BanditAlgorithm(
         estimator,
         explore,
     )
