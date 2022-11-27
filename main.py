@@ -9,6 +9,7 @@ from lightning_lite.utilities.seed import seed_everything
 import numpy as np
 from pprint import pprint
 
+
 """
 TODO: 
 1. visualize the loss in the prediction of the Q values of
@@ -16,6 +17,31 @@ TODO:
 - NeuralEstimator
 - RecurrentEstimator
 2. Moving from bandit to RL.
+
+
+TODO: BUG?: RecurrentEstimator is very bad. Check if it is behaving correctly.
+- Yes! Saving hidden_states based on the sequence and old weights are NOT
+ideal since we cannot use the latest backprop model.
+We need to consult recurrent RL to see how to efficiently implement this!
+
+
+LSTM workload:
+- prediction phase: Q(o | h) 
+- Update phase: update Q, and feed more to h and recompute h.
+
+DEBUG:
+- Prediction: 
+    1. within one prediction step, o1 = o2 means Q(o1) = Q(o2) [OK]
+    2. In the next prediction step (if the Q is updated), then Q(o1) != Q(o2) [OK]
+
+- Update phase:
+    1. Check that the weights of Q (loss actually backpropagated through LSTM) is updated such that Q_{t}(o_{1:t}) != Q_{t+1}(o_{t:t}) for the same sequence o1,...,ot.
+    or just look that the LSTM weight to see if it is updated.
+    2. Check that the hidden state actually changes by feeding more obs to the LSTM by checking that 
+    Q(h_{t+1}) != Q(h_{t}) for the same params Q.
+
+Maybe do the concat to the model as before, treating the user internal state and the current considerations
+differently like Google top-k REINFORCE paper.
 """
 if __name__ == "__main__":
     seed_everything(0)
@@ -54,20 +80,17 @@ if __name__ == "__main__":
     obs = env.reset()
     # print("initial obs:", obs)
     done = False
-    cum_reward = 0
-    cum_rewards = []
+    step_rewards = []
     pred_losses = []
     step = 0
     while not done:
         action = algo.predict(obs)
         next_obs, reward, done, info = env.step(action)
-        cum_reward += reward
         algo.update_estimator(obs, action, info["rewards"])
         obs = next_obs
-        cum_rewards.append(cum_reward)
+        step_rewards.append(reward)
         pred_loss = (algo.estimator.Q - env.Q) ** 2
         pred_losses.append(pred_loss)
-        print(f"step: {step}, cum_reward: {cum_reward}, pred_loss: {pred_loss}")
         step += 1
 
     print("current samples after training:")
@@ -75,7 +98,7 @@ if __name__ == "__main__":
     routed_data = env.current_samples - existing_samples
     print("routed data:")
     print(routed_data)
-    # print(cum_rewards)
+    print(np.mean(step_rewards))
     # pprint(obs)
     # pprint(env.step(np.array([0, 2])))
     # pprint(env.step(np.array([0, 1])))

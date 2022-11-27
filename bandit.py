@@ -10,7 +10,7 @@ from typing import Optional, Tuple, Dict, List
 
 class Estimator:
     @abstractmethod
-    def get_Q(self, observations: np.ndarray):
+    def get_Q(self, observations: np.ndarray, eval=True):
         pass
 
     @abstractmethod
@@ -106,10 +106,6 @@ class PerArmExploration(ExplorationStrategy):
             action: (num_slates,) array of actions.
         """
         tasks, cls = observations[:, 0], observations[:, 1]
-        # NOTE: this explore_factor needs to be tuned otherwise, we might hit a
-        # lot of unnecessary tasks!
-        # explore_factor = np.log(self.num_data_sent) / \
-        #     self.num_chosens[tasks, cls]
         explore_factor = (np.log(self.num_data_sent) /
                           np.maximum(self.num_chosens[tasks, cls], 1)) * self.epsilon
         # replace nan by 1
@@ -145,6 +141,8 @@ class NeuralEstimator(Estimator):
         )
         self.criterion = nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        print("Estimator num params: ", sum(p.numel()
+              for p in self.model.parameters()))
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
         if eval:
@@ -159,7 +157,7 @@ class NeuralEstimator(Estimator):
         return Q
 
     @property
-    def Q(self) -> np.ndarray:
+    def Q(self, eval=True) -> np.ndarray:
         return self.get_Q(np.array([[task, c] for task in range(self.num_tasks) for c in range(self.num_cls)]), eval=True).reshape(self.num_tasks, self.num_cls)
 
     def update(self, observations: np.ndarray, actions: np.ndarray, rewards: np.ndarray):
@@ -173,9 +171,7 @@ class NeuralEstimator(Estimator):
 class RecurrentNeuralEstimator(Estimator):
     """
     To estimate the rewards, we also take into account the previous data that we already sent to the user.
-    TODO: this is very slow, we should remember the user_internal_state instead of
-    computing it each time.
-    Should consult recurrent DQN (https://mlpeschl.com/post/tiny_adrqn/)
+    TODO: Should consult recurrent DQN (https://mlpeschl.com/post/tiny_adrqn/)
     """
 
     def __init__(self, num_tasks: int, num_cls: int):
@@ -184,50 +180,51 @@ class RecurrentNeuralEstimator(Estimator):
         # use a LSTM to predict the Q value
         self.internal_state_model = nn.LSTM(2, 32)
         self.model = nn.Sequential(
-            nn.Linear(32 + 2, 64),
+            nn.Linear(32, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
         )
-        self.data_sent = []  # (task, class) tuples
+        self.hiddens = None
         self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(
+            list(self.internal_state_model.parameters()) + list(self.model.parameters()), lr=0.001)
 
-    def compute_internal_state(self) -> torch.Tensor:
-        # feed the data sent so far to the LSTM
-        data_seq = torch.from_numpy(
-            np.array(self.data_sent)).float()  # (seq_len, 2)
-        data_seq = data_seq.unsqueeze(1)  # (seq_len, batch_size=1, 2)
-        # check if there's any data sent so far
-        # TODO: check this, might be BUG: should be get h or c as the
-        if data_seq.shape[0] > 0:
-            _, (internal_state, _) = self.internal_state_model(data_seq)
-            internal_state = internal_state.squeeze()
-        else:
-            internal_state = torch.zeros(32)
-        return internal_state
+        print("Estimator Num params", sum(p.numel()
+              for p in list(self.model.parameters()) + list(self.internal_state_model.parameters()) if p.requires_grad))
 
-    def forward(self, x, hidden=None):
+    def forward(self, x, batch_first=True):
         """
         Args:
-            x: (batch_size, 2) array of (task, class) tuples.
+            x: (batch_size, 2) array of (task, class) tuples where batch_first is True.
+            x: (seq_len, 2) array of (task, class) tuples where batch_first is False. This
+            is for updating the internal state.
         """
-        user_state = self.compute_internal_state()  # (32,)
-        user_states = torch.tile(
-            user_state, (x.shape[0], 1))  # (batch_size, 32)
-        # concat user_state with x
-        x = torch.concatenate([user_states, x], axis=1)  # (batch_size, 34)
-        return self.model(x)
+        # convert x to (seq_len=1, batch_size, 2)
+        x
+        if batch_first:
+            x = x.unsqueeze(0)
+        else:
+            x = x.unsqueeze(1)
+        hiddens = self.hiddens
+        if batch_first and hiddens is not None:
+            # replicate the hidden state for the new batch
+            hiddens = (hiddens[0].repeat(1, x.shape[1], 1),
+                       hiddens[1].repeat(1, x.shape[1], 1))
+        out, hiddens = self.internal_state_model(x, hiddens)
+        return self.model(out.squeeze()), hiddens
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
         if eval:
             self.model.eval()
             with torch.no_grad():
-                Q = self.forward(torch.from_numpy(
-                    observations).float()).squeeze().numpy()
+                Q, _ = self.forward(torch.from_numpy(
+                    observations).float())
+                Q = Q.squeeze().numpy()
         else:
             self.model.train()
-            Q = self.forward(torch.from_numpy(
-                observations).float()).squeeze()
+            Q, _ = self.forward(torch.from_numpy(
+                observations).float())
+            Q = Q.squeeze()
         return Q
 
     @property
@@ -240,8 +237,10 @@ class RecurrentNeuralEstimator(Estimator):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        # update data sent
-        self.data_sent.extend(observations[actions])
+        # update hidden state by feeding observations[actions] to the LSTM
+        with torch.no_grad():
+            _, self.hiddens = self.forward(torch.from_numpy(
+                observations[actions]).float(), batch_first=False)
 
 
 class Algorithm:
@@ -253,7 +252,7 @@ class Algorithm:
         """
         obs: (batch_size, num_features) array of observations.
         """
-        Q_values = self.estimator.get_Q(obs)
+        Q_values = self.estimator.get_Q(obs, eval=True)
         action = self.exploration_strategy.get_action(obs, Q_values)
         self.exploration_strategy.update(obs, action)
         return action
