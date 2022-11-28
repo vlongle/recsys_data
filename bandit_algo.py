@@ -19,6 +19,7 @@ class BanditAlgorithm:
         """
         obs: (batch_size, num_features) array of observations.
         """
+        print("Q:", self.estimator.Q)
         Q_values = self.estimator.get_Q(obs, eval=True)
         action = self.exploration_strategy.get_action(obs, Q_values)
         self.exploration_strategy.update(obs, action)

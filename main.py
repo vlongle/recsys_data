@@ -1,4 +1,7 @@
-from env import RouterEnv
+from env import (
+    RouterEnv,
+    ImgRouterEnv,
+)
 from bandit_algo import BanditAlgorithm
 from preference_estimator import (
     EmpiricalEstimator,
@@ -22,20 +25,20 @@ TODO:
 - NeuralEstimator
 - RecurrentEstimator
 2. Moving from bandit to RL.
-
+3. Move from (task, class) to (image) and hope that we can use encoder to learn the task and class implicitly.
 """
+import time
 if __name__ == "__main__":
     seed_everything(0)
+    start = time.time()
+
     num_tasks = 2
     num_cls = 10
-    reduce_fator = 2
+    reduce_fator = 32
     num_candidates = 64
     num_slates = num_candidates // reduce_fator
-    num_samples = 24000
-    # existing_samples = np.array([[0, 0],
-    #                             [10, 10]])
-    # target_samples = np.array([[10, 10],
-    #                            [10, 10]])
+    # num_samples = 24000
+    num_samples = 60000 * 2
     num_data_sent = num_samples // reduce_fator
     target_samples = np.ones((num_tasks, num_cls)) * (num_data_sent // num_cls)
     existing_samples = np.zeros((num_tasks, num_cls))
@@ -43,19 +46,26 @@ if __name__ == "__main__":
     print(target_samples)
     print(existing_samples)
 
-    env = RouterEnv(existing_samples, target_samples,
-                    cfg={"num_candidates": num_candidates,
-                         "num_samples": num_samples,
-                         "num_slates": num_slates,
-                         "num_tasks": num_tasks,
-                         "num_classes": num_cls, })
+    # env = RouterEnv(existing_samples, target_samples,
+    #                 cfg={"num_candidates": num_candidates,
+    #                      "num_samples": num_samples,
+    #                      "num_slates": num_slates,
+    #                      "num_tasks": num_tasks,
+    #                      "num_classes": num_cls, })
+
+    env = ImgRouterEnv(existing_samples, target_samples,
+                       cfg={"num_candidates": num_candidates,
+                            "num_samples": num_samples,
+                            "num_slates": num_slates,
+                            "num_tasks": num_tasks,
+                            "num_classes": num_cls, })
 
     estimator = EmpiricalEstimator(num_tasks, num_cls)
     # estimator = NeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimatorV0(num_tasks, num_cls)
-    explore = PerArmExploration(num_tasks, num_cls, num_slates)
-    # explore = UniformEpsilonExploration(num_tasks, num_cls, num_slates)
+    # explore = PerArmExploration(num_tasks, num_cls, num_slates)
+    explore = UniformEpsilonExploration(num_tasks, num_cls, num_slates)
     algo = BanditAlgorithm(
         estimator,
         explore,
@@ -85,3 +95,7 @@ if __name__ == "__main__":
     # pprint(obs)
     # pprint(env.step(np.array([0, 2])))
     # pprint(env.step(np.array([0, 1])))
+
+    end = time.time()
+
+    print("Time (s):", end - start)
