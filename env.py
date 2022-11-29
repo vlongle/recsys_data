@@ -182,6 +182,8 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         self.max_step = min(self.max_steps, len(
             self.dataset_train) // self.batch_size)
 
+        self.use_img = cfg.get("use_img", False)
+
         self.evaluate_strategy = cfg.get("evaluate_strategy", "uniform")
 
     def _get_full_obs(self) -> Tuple:
@@ -200,9 +202,12 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         Returns:
             (batch_size, 2) array of (task, class) tuples.
         """
-        _, batch_z, batch_y = self._get_full_obs()
+        batch_x, batch_z, batch_y = self._get_full_obs()
         batch_y.apply_(lambda x: x % 10)
-        return np.stack([batch_z.numpy(), batch_y.numpy()], axis=1)
+        if self.use_img:
+            return batch_x.numpy()
+        else:
+            return np.stack([batch_z.numpy(), batch_y.numpy()], axis=1)
 
     def reset(self):
         self.model = MNISTNet(self.X_test, self.y_test)

@@ -24,7 +24,8 @@ class MNISTNet(nn.Module):
 
         self.criteria = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        print("Num parameters:", sum(p.numel() for p in self.parameters()))
+        print("MNIST num parameters:", sum(p.numel()
+              for p in self.parameters()))
         self.X_test = X_test.to('cuda')
         self.y_test = y_test.to('cuda')
         self.to('cuda')
@@ -52,6 +53,13 @@ class MNISTNet(nn.Module):
             y_hat = self(self.X_test)
             loss = self.criteria(y_hat, self.y_test)
             return loss.item()
+
+    def test_acc(self):
+        self.eval()
+        with torch.no_grad():
+            y_hat = self(self.X_test)
+            acc = (y_hat.argmax(dim=1) == self.y_test).float().mean().item()
+            return acc
 
     def evaluate_usefulness_each_one(self, X, ys):
         # for each (x, y) in X, ys, evaluate the usefulness of the point

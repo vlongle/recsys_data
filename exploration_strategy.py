@@ -120,3 +120,15 @@ class UniformEpsilonExploration(ExplorationStrategy):
         self.epsilon = max(self.min_epislon,
                            self.epsilon * self.decay_factor)
         self.step += 1
+
+
+class RandomRouting(ExplorationStrategy):
+    def __init__(self, num_tasks, num_cls, num_slates, cfg={}):
+        self.num_slates = num_slates
+
+    def get_action(self, observations: np.ndarray, Q_values: np.ndarray):
+        return np.random.choice(
+            observations.shape[0], self.num_slates, replace=False)
+
+    def update(self, observations: np.ndarray, actions: np.ndarray):
+        pass

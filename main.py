@@ -8,10 +8,12 @@ from preference_estimator import (
     NeuralEstimator,
     RecurrentNeuralEstimator,
     RecurrentNeuralEstimatorV0,
+    DummyEstimator,
 )
 from exploration_strategy import (
     PerArmExploration,
     UniformEpsilonExploration,
+    RandomRouting,
 )
 from lightning_lite.utilities.seed import seed_everything
 import numpy as np
@@ -60,12 +62,15 @@ if __name__ == "__main__":
                             "num_tasks": num_tasks,
                             "num_classes": num_cls, })
 
-    estimator = EmpiricalEstimator(num_tasks, num_cls)
+    # estimator = EmpiricalEstimator(num_tasks, num_cls)
+    estimator = DummyEstimator(num_tasks, num_cls)
     # estimator = NeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimatorV0(num_tasks, num_cls)
+
     # explore = PerArmExploration(num_tasks, num_cls, num_slates)
-    explore = UniformEpsilonExploration(num_tasks, num_cls, num_slates)
+    # explore = UniformEpsilonExploration(num_tasks, num_cls, num_slates)
+    explore = RandomRouting(num_tasks, num_cls, num_slates)
     algo = BanditAlgorithm(
         estimator,
         explore,

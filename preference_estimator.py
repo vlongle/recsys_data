@@ -5,8 +5,13 @@ import torch.nn as nn
 from typing import Optional
 import torch
 
+from rich.console import Console
+
 
 class Estimator:
+    def __init__(self, num_tasks: int, num_cls: int, cfg={}):
+        pass
+
     @abstractmethod
     def get_Q(self, observations: np.ndarray, eval=True):
         pass
@@ -16,8 +21,16 @@ class Estimator:
         pass
 
 
+class DummyEstimator(Estimator):
+    def get_Q(self, observations: np.ndarray, eval=True):
+        return np.zeros(observations.shape[0])
+
+    def update(self, observations: np.ndarray, actions: np.ndarray, rewards: np.ndarray):
+        pass
+
+
 class EmpiricalEstimator(Estimator):
-    def __init__(self, num_tasks: int, num_cls: int):
+    def __init__(self, num_tasks: int, num_cls: int, cfg={}):
         self.num_tasks = num_tasks
         self.num_cls = num_cls
         self.cum_rewards = np.zeros((num_tasks, num_cls))
@@ -65,13 +78,28 @@ class EmpiricalEstimator(Estimator):
 
 
 class NeuralEstimator(Estimator):
-    def __init__(self, num_tasks: int, num_cls: int):
+    def __init__(self, num_tasks: int, num_cls: int, use_img: Optional[bool] = False, cfg={}):
         self.num_tasks = num_tasks
         self.num_cls = num_cls
+        self.use_img = use_img
+
+        if self.use_img:
+            self.encoder = nn.Sequential(
+                nn.Conv2d(1, 16, 3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Conv2d(16, 4, 3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+            )  # 28x28 -> 4x7x7
+            self.extra_encoder = nn.Linear(4 * 7 * 7, 32)
+        else:
+            self.encoder = nn.Sequential(
+                nn.Linear(2, 32),
+                nn.ReLU(),
+            )
         # given a task and a class, predict the Q value
         self.model = nn.Sequential(
-            nn.Linear(2, 32),
-            nn.ReLU(),
             nn.Linear(32, 64),
             nn.ReLU(),
             nn.Linear(64, 128),
@@ -79,19 +107,31 @@ class NeuralEstimator(Estimator):
             nn.Linear(128, 1),
         )
         self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        params = list(self.encoder.parameters()) + \
+            list(self.model.parameters())
+        if self.use_img:
+            params += list(self.extra_encoder.parameters())
+
+        self.optimizer = torch.optim.Adam(params, lr=0.001)
         print("Neural Estimator num params: ", sum(p.numel()
-              for p in self.model.parameters()))
+              for p in params))
+
+    def forward(self, x):
+        x = self.encoder(x)
+        if self.use_img:
+            x = x.view(-1, 4 * 7 * 7)
+            x = self.extra_encoder(x)
+        return self.model(x)
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
         if eval:
             self.model.eval()
             with torch.no_grad():
-                Q = self.model(torch.from_numpy(
+                Q = self.forward(torch.from_numpy(
                     observations).float()).squeeze().numpy()
         else:
             self.model.train()
-            Q = self.model(torch.from_numpy(
+            Q = self.forward(torch.from_numpy(
                 observations).float()).squeeze()
         return Q
 
@@ -113,9 +153,10 @@ class RecurrentNeuralEstimator(Estimator):
     Use the internal state concatenated with the observations to predict the Q value.
     """
 
-    def __init__(self, num_tasks: int, num_cls: int):
+    def __init__(self, num_tasks: int, num_cls: int, use_img=False, cfg={}):
         self.num_tasks = num_tasks
         self.num_cls = num_cls
+        self.use_img = use_img
         # use a LSTM to predict the Q value
         self.state_embedder = nn.Linear(2, 32)
         self.internal_state_model = nn.LSTM(2, 32)
@@ -183,12 +224,24 @@ class RecurrentNeuralEstimatorV0(Estimator):
     Feed all the observations into LSTM to predict the Q value.
     """
 
-    def __init__(self, num_tasks: int, num_cls: int):
+    def __init__(self, num_tasks: int, num_cls: int, use_img: Optional[bool] = False, cfg={}):
         self.num_tasks = num_tasks
         self.num_cls = num_cls
-        self.state_embedder = nn.Linear(2, 32)
-        # use a LSTM to predict the Q value
-        self.internal_state_model = nn.LSTM(32, 64)
+        self.use_img = use_img
+        if self.use_img:
+            self.encoder = nn.Sequential(
+                nn.Conv2d(1, 16, 3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Conv2d(16, 4, 3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+            )  # 28x28 -> 4x7x7
+            self.internal_state_model = nn.LSTM(4 * 7 * 7, 64)
+        else:
+            self.encoder = nn.Linear(2, 32)
+            # use a LSTM to predict the Q value
+            self.internal_state_model = nn.LSTM(32, 64)
         self.model = nn.Sequential(
             nn.Linear(64, 64),
             nn.ReLU(),
@@ -198,9 +251,13 @@ class RecurrentNeuralEstimatorV0(Estimator):
         self.criterion = nn.MSELoss()
         params = list(self.model.parameters()) + \
             list(self.internal_state_model.parameters()) + \
-            list(self.state_embedder.parameters())
+            list(self.encoder.parameters())
         self.optimizer = torch.optim.Adam(params, lr=0.001)
 
+        self.step = 0
+        self.reset_period = cfg.get("reset_period", 100000)
+
+        self.console = Console()
         print("Recurrent Estimator (one-feed) Num params", sum(p.numel()
               for p in params if p.requires_grad))
 
@@ -212,17 +269,25 @@ class RecurrentNeuralEstimatorV0(Estimator):
             is for updating the internal state.
         """
         # convert x to (seq_len=1, batch_size, 2)
-        x = self.state_embedder(x)
+        x = self.encoder(x)
+        if self.use_img:
+            x = x.view(-1, 4 * 7 * 7)
         if batch_first:
             x = x.unsqueeze(0)
         else:
             x = x.unsqueeze(1)
         hiddens = self.hiddens
+        # print("forward hidden", hiddens)
         if batch_first and hiddens is not None:
             # replicate the hidden state for the new batch
             hiddens = (hiddens[0].repeat(1, x.shape[1], 1),
                        hiddens[1].repeat(1, x.shape[1], 1))
         out, hiddens = self.internal_state_model(x, hiddens)
+        # print("hiddens:", hiddens[0])
+        # out2, hiddens2 = self.internal_state_model(x)
+        # print("hiddens2:", hiddens2[0])
+        # print("out:", out)
+        # print("out2:", out2)
         return self.model(out.squeeze()), hiddens
 
     def get_Q(self, observations: np.ndarray, eval: Optional[bool] = True) -> np.ndarray:
@@ -239,17 +304,23 @@ class RecurrentNeuralEstimatorV0(Estimator):
             Q = Q.squeeze()
         return Q
 
-    @property
+    @ property
     def Q(self) -> np.ndarray:
         return self.get_Q(np.array([[task, c] for task in range(self.num_tasks) for c in range(self.num_cls)]), eval=True).reshape(self.num_tasks, self.num_cls)
 
     def update(self, observations: np.ndarray, actions: np.ndarray, rewards: np.ndarray):
+        if self.step % self.reset_period == 0:
+            self.console.print(">> RESET", style="red")
+            self.hiddens = None
         pred_Q = self.get_Q(observations, eval=False)[actions]
         loss = self.criterion(pred_Q, torch.from_numpy(rewards).float())
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
         # update hidden state by feeding observations[actions] to the LSTM
         with torch.no_grad():
             _, self.hiddens = self.forward(torch.from_numpy(
                 observations[actions]).float(), batch_first=False)
+
+        self.step += 1

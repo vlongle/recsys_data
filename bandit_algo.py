@@ -21,8 +21,8 @@ class BanditAlgorithm:
         """
         # print("num_chosens:")
         # print(self.estimator.num_chosens)
-        print("Q:")
-        print(self.estimator.Q)
+        # print("Q:")
+        # print(self.estimator.Q)
         Q_values = self.estimator.get_Q(obs, eval=True)
         action = self.exploration_strategy.get_action(obs, Q_values)
         self.exploration_strategy.update(obs, action)
