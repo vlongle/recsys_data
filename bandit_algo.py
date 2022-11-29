@@ -8,6 +8,9 @@ from exploration_strategy import (
 )
 from lightning_lite.utilities.seed import seed_everything
 import numpy as np
+from typing import (
+    List,
+)
 
 
 class BanditAlgorithm:
@@ -28,8 +31,32 @@ class BanditAlgorithm:
         self.exploration_strategy.update(obs, action)
         return action
 
-    def update_estimator(self, observations, actions, rewards):
+    def update_estimator(self, observations, actions, rewards, update_batch_size=None):
+        if update_batch_size is not None:
+            observations, actions, rewards = self.preprocess(observations,
+                                                             actions,
+                                                             rewards,
+                                                             update_batch_size)
+
         self.estimator.update(observations, actions, rewards)
+
+    def preprocess(self, observations: List[np.ndarray], actions, rewards, update_batch_size):
+        assert len(observations) == len(actions) == len(
+            rewards) == update_batch_size, "update_batch_size must be equal to the number of observations, actions, and rewards"
+
+        batch_sizes = [obs.shape[0] for obs in observations]
+        # concat all observations, actions, rewards
+        observations = np.concatenate(observations, axis=0)
+        cum_batch_sizes = np.cumsum(batch_sizes)
+        # process actions to increment to the correct index
+        for batch_idx in range(1, len(cum_batch_sizes)):
+            actions[batch_idx] += cum_batch_sizes[batch_idx - 1]
+
+        # BUG: rewards concat like this is WRONG!!!!!
+        actions = np.concatenate(actions, axis=0)
+        rewards = np.concatenate(rewards, axis=0)
+
+        return observations, actions, rewards
 
 
 if __name__ == "__main__":

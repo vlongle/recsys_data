@@ -117,3 +117,63 @@ CUBLAS_WORKSPACE_CONFIG=:16:8 python main_uniform.py
 ```
 with cublas config (see https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility and https://pytorch.org/docs/stable/notes/randomness.html)
 
+
+
+TODO:
+1. modify the uniform.ipynb to make it reproducible with main_uniform.py
+2. Plot the number of data points sent per tasks!
+3. Final paper: 
+- exploration vs purely exploitative
+- Image vs no image
+- Plot rewards, model loss and data routing
+- Communication bandwidth.
+- compare different evaluation method
+
+
+TODO: for large reduce factor, learning estimators are pretty bad. 
+DEBUG: look at the Q-value for the img=False. Is the Q correct?
+1. Maybe too noisy --> need to update the neural models only on batch.
+2. Maybe exploration vs exploit issue. Need to tune explore_config?
+
+
+
+Exploit factor =1, Empirical, uniform reward.
+    array([12452.,  5173.,  4871.])
+    EmpiricalEstimator 0.681027113518212
+
+
+Exploit factor = 3, Empirical, uniform reward
+    Data: array([17630.,  2516.,  2350.])
+    EmpiricalEstimator 0.7263356351494704
+
+
+
+With exploit factor = 3, NN still sucks probably due to noisy update...
+
+update_period = 1
+
+current samples after training:
+[[ 265.  157.   88.   57.   49.   32.   35.   46.   40.   61.]
+ [5043. 4879.  347.   76.   52.   36.   31.   44.   57.  120.]
+ [3767. 4848. 1617.  197.   70.   46.   41.   98.  158.  139.]]
+reward: 14.159670521490604
+final model accuracy: 0.18029999732971191
+time(s) : 77.77452874183655
+
+
+
+
+
+sizes = [4, 2, 6]
+action = [[0], [0], [0]]
+
+
+TODO: debug!!!!!
+NeuralNetEstimator straight up does NOT WORK ANY MORE, WTF??????????????????????
+
+
+update_period code might be buggy...
+
+
+
+TODO: move actions out of update function in preference_estimator.

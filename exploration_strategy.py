@@ -51,6 +51,7 @@ class PerArmExploration(ExplorationStrategy):
         Returns:
             action: (num_slates,) array of actions.
         """
+        num_slates = min(self.num_slates, observations.shape[0])
         tasks, cls = observations[:, 0], observations[:, 1]
         explore_factor = (np.log(self.num_data_sent) /
                           np.maximum(self.num_chosens[tasks, cls], 1)) ** (0.5) * self.epsilon
@@ -66,16 +67,16 @@ class PerArmExploration(ExplorationStrategy):
         probs = weights / np.sum(weights)
         # sample without replacement if there's enough non-zero weights for num_slates
         # otherwise, send all non-zero weights
-        if np.sum(weights > 0) < self.num_slates:
+        if np.sum(weights > 0) < num_slates:
             action = np.nonzero(weights)[0]
             # if action is empty, then all weights are 0, so just a random batch
             # (equally likely to be any batch)
             if action.shape[0] == 0:
                 action = np.random.choice(
-                    np.arange(observations.shape[0]), self.num_slates)
+                    np.arange(observations.shape[0]), num_slates)
         else:
             action = np.random.choice(
-                observations.shape[0], self.num_slates, p=probs, replace=False)
+                observations.shape[0], num_slates, p=probs, replace=False)
         return action
 
 
@@ -85,15 +86,18 @@ class UniformEpsilonExploration(ExplorationStrategy):
         self.epsilon = cfg.get("epsilon", 2.0)
         self.min_epislon = cfg.get("min_epislon", 0.01)
         self.decay_factor = cfg.get("decay_factor", 0.9)
+        self.exploit_factor = cfg.get("exploit_factor", 1.0)
+        print("epsilon {}, min_epislon {}, decay_factor {}, exploit_factor {}".format(
+            self.epsilon, self.min_epislon, self.decay_factor, self.exploit_factor))
         self.step = 0
 
     def get_action(self, observations: np.ndarray, Q_values: np.ndarray):
         # HACK: initially we should send a lot of data to get a good estimate of Q
-        if self.step <= 50:
-            num_slates = self.num_slates * 2
-        else:
-            num_slates = self.num_slates
-        # num_slates = self.num_slates
+        # if self.step <= 50:
+        #     num_slates = self.num_slates * 2
+        # else:
+        #     num_slates = self.num_slates
+        num_slates = min(self.num_slates, observations.shape[0])
         explore_factor = self.epsilon
         weights = explore_factor + Q_values
         # replace nan by 1
@@ -103,7 +107,9 @@ class UniformEpsilonExploration(ExplorationStrategy):
         # again, which is appropriate in this oracle preference but might not be true
         # in general (e.g., test improvement)
         # weights = np.maximum(weights, 0)
-        weights = np.exp(weights / self.epsilon)
+        weights = (weights / self.epsilon) * self.exploit_factor
+        # numerically stable softmax
+        weights = np.exp(weights - np.max(weights))
         probs = weights / np.sum(weights)
         # sample without replacement if there's enough non-zero weights for num_slates
         # otherwise, send all non-zero weights
@@ -133,8 +139,9 @@ class RandomRouting(ExplorationStrategy):
         self.num_slates = num_slates
 
     def get_action(self, observations: np.ndarray, Q_values: np.ndarray):
+        num_slates = min(self.num_slates, observations.shape[0])
         return np.random.choice(
-            observations.shape[0], self.num_slates, replace=False)
+            observations.shape[0], num_slates, replace=False)
 
     def update(self, observations: np.ndarray, actions: np.ndarray):
         pass

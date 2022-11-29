@@ -106,20 +106,13 @@ class MNISTNet(nn.Module):
         batch_z.apply_(lambda x: x // 10)
         before_loss = self.test_step()
 
-        net_copy0 = deepcopy(self)
-        batch_x0 = batch_x[batch_z == 0]
-        batch_y0 = batch_y[batch_z == 0]
-        net_copy0.train_step(batch_x0, batch_y0)
-        test_loss0 = net_copy0.test_step()
-
-        net_copy1 = deepcopy(self)
-        batch_x1 = batch_x[batch_z == 1]
-        batch_y1 = batch_y[batch_z == 1]
-        net_copy1.train_step(batch_x1, batch_y1)
-        test_loss1 = net_copy1.test_step()
-
-        improv0, improv1 = before_loss - test_loss0, before_loss - test_loss1
         rewards = np.zeros(batch_x.shape[0])
-        rewards[batch_z == 0] = improv0
-        rewards[batch_z == 1] = improv1
+        for task in range(self.num_tasks):
+            net_copy_task = deepcopy(self)
+            batch_x_task = batch_x[batch_z == task]
+            batch_y_task = batch_y[batch_z == task]
+            net_copy_task.train_step(batch_x_task, batch_y_task)
+            test_loss_task = net_copy_task.test_step()
+            rewards[batch_z == task] = before_loss - test_loss_task
+
         return rewards

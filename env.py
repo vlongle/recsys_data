@@ -166,11 +166,11 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         fdataset_train = torchvision.datasets.FashionMNIST(
             root='./data', train=True, download=True, transform=torchvision.transforms.ToTensor(),
             target_transform=lambda x: x + 10)
-        
+
         kdataset_train = torchvision.datasets.KMNIST(
             root='./data', train=True, download=True, transform=torchvision.transforms.ToTensor(),
             target_transform=lambda x: x + 20)
-        
+
         self.dataset_train = torch.utils.data.ConcatDataset(
             [mdataset_train, fdataset_train, kdataset_train])
 
@@ -184,7 +184,7 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         self.num_tasks = 3
         self.num_classes = 10
         self.max_steps = cfg.get("max_steps", np.inf)
-        self.max_step = min(self.max_steps, len(
+        self.max_steps = min(self.max_steps, len(
             self.dataset_train) // self.batch_size)
 
         self.use_img = cfg.get("use_img", False)
@@ -228,6 +228,8 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         self.dataset_stream_idx = torch.randperm(len(self.dataset_train))
         self.env_step = 0
         self.current_samples = np.zeros((self.num_tasks, self.num_classes))
+        self.routed_samples_per_time = np.zeros(
+            (self.max_steps, self.num_tasks, self.num_classes))
         return self._get_obs()
 
     def step(self, action: np.ndarray) -> Tuple:
@@ -239,17 +241,20 @@ class ImgRouterEvalEnv(ImgRouterEnv):
             routed_batch_z, return_counts=True, sorted=True))
         rewards = self.evaluate_fn(
             routed_batch_x, routed_batch_y)
-        # update states
-        self.env_step += 1
-        self.model.train_step(routed_batch_x, routed_batch_y)
-        done = self.env_step >= self.max_steps
-        next_obs = np.array([]) if done else self._get_obs()
 
+        # update states
         routed_batch_y.apply_(lambda x: x % 10)
         for task in range(self.num_tasks):
             for cls in range(self.num_classes):
                 self.current_samples[task,
                                      cls] += torch.sum((routed_batch_z == task) & (routed_batch_y == cls)).item()
+                self.routed_samples_per_time[self.env_step, task, cls] = torch.sum(
+                    (routed_batch_z == task) & (routed_batch_y == cls)).item()
+
+        self.env_step += 1
+        self.model.train_step(routed_batch_x, routed_batch_y)
+        done = self.env_step >= self.max_steps
+        next_obs = np.array([]) if done else self._get_obs()
 
         return next_obs, np.sum(rewards), done, {"rewards": rewards}
 

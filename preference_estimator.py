@@ -9,7 +9,7 @@ from rich.console import Console
 
 
 class Estimator:
-    def __init__(self, num_tasks: int, num_cls: int, cfg={}):
+    def __init__(self, num_tasks: int, num_cls: int, use_img=False, cfg={}):
         pass
 
     @abstractmethod
@@ -30,7 +30,8 @@ class DummyEstimator(Estimator):
 
 
 class EmpiricalEstimator(Estimator):
-    def __init__(self, num_tasks: int, num_cls: int, cfg={}):
+    def __init__(self, num_tasks: int, num_cls: int, use_img=False, cfg={}):
+        assert use_img == False, "EmpiricalEstimator does not support image."
         self.num_tasks = num_tasks
         self.num_cls = num_cls
         self.cum_rewards = np.zeros((num_tasks, num_cls))
