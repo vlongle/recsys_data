@@ -26,12 +26,13 @@ if __name__ == "__main__":
 
     start = time.time()
     num_candidates = 256
-    max_steps = 20
+    max_steps = 200
     cfg = {
         "num_candidates": num_candidates,
         "max_steps": max_steps,
-        # "evaluate_strategy": "leave_one_out",
-        "evaluate_strategy": "each_one",
+        "evaluate_strategy": "leave_one_out",
+        # "evaluate_strategy": "each_one",
+        # "evaluate_strategy": "uniform",
     }
 
     explore_cfg = {
@@ -45,8 +46,8 @@ if __name__ == "__main__":
     num_cls = 10
     reduce_fator = 2
     num_slates = num_candidates // reduce_fator
-    estimator = EmpiricalEstimator(num_tasks, num_cls)
-    # estimator = NeuralEstimator(num_tasks, num_cls)
+    # estimator = EmpiricalEstimator(num_tasks, num_cls)
+    estimator = NeuralEstimator(num_tasks, num_cls)
     # estimator = RecurrentNeuralEstimatorV0(num_tasks, num_cls)
     # explore = PerArmExploration(num_tasks, num_cls, num_slates)
     explore = UniformEpsilonExploration(

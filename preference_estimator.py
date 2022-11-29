@@ -43,12 +43,17 @@ class EmpiricalEstimator(Estimator):
         assert rewards.shape == (
             actions.shape[0], ), "Rewards and actions must have the same shape."
         batch_tasks, batch_cls = get_batch_tasks_cls(observations, actions)
+        delta = np.zeros((self.num_tasks, self.num_cls))
         for task in range(self.num_tasks):
             for c in range(self.num_cls):
-                self.cum_rewards[task, c] += np.sum(
+                delta[task, c] = np.sum(
                     ((batch_tasks == task) & (batch_cls == c)) * rewards)
                 self.num_chosens[task, c] += np.sum(
                     (batch_tasks == task) & (batch_cls == c))
+
+        print("delta:")
+        print(delta)
+        self.cum_rewards += delta
 
     def get_Q(self, observations: np.ndarray, eval=True):
         """

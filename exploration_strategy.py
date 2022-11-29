@@ -68,6 +68,11 @@ class PerArmExploration(ExplorationStrategy):
         # otherwise, send all non-zero weights
         if np.sum(weights > 0) < self.num_slates:
             action = np.nonzero(weights)[0]
+            # if action is empty, then all weights are 0, so just a random batch
+            # (equally likely to be any batch)
+            if action.shape[0] == 0:
+                action = np.random.choice(
+                    np.arange(observations.shape[0]), self.num_slates)
         else:
             action = np.random.choice(
                 observations.shape[0], self.num_slates, p=probs, replace=False)
@@ -91,8 +96,8 @@ class UniformEpsilonExploration(ExplorationStrategy):
         # since clamping to 0 means that negative rewards / Qs will never be picked
         # again, which is appropriate in this oracle preference but might not be true
         # in general (e.g., test improvement)
-        weights = np.maximum(weights, 0)
-        # weights = np.exp(weights / self.epsilon)
+        # weights = np.maximum(weights, 0)
+        weights = np.exp(weights / self.epsilon)
         probs = weights / np.sum(weights)
         # sample without replacement if there's enough non-zero weights for num_slates
         # otherwise, send all non-zero weights
@@ -100,6 +105,11 @@ class UniformEpsilonExploration(ExplorationStrategy):
             print("sending all non-zero weights")
             action = np.nonzero(weights)[0]
             print()
+            # if action is empty, then all weights are 0, so just a random batch
+            # (equally likely to be any batch)
+            if action.shape[0] == 0:
+                action = np.random.choice(
+                    np.arange(observations.shape[0]), self.num_slates)
         else:
             action = np.random.choice(
                 observations.shape[0], self.num_slates, p=probs, replace=False)

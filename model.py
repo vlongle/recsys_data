@@ -55,7 +55,7 @@ class MNISTNet(nn.Module):
 
     def evaluate_usefulness_each_one(self, X, ys):
         # for each (x, y) in X, ys, evaluate the usefulness of the point
-        # slow and noisy
+        # slow and NOISY
         batch_size = X.shape[0]
         before_loss = self.test_step()
         losses = []
@@ -72,7 +72,7 @@ class MNISTNet(nn.Module):
         # return (before_loss - np.array(losses)) / before_loss
 
     def evaluate_usefulness_leave_one_out(self, X, ys):
-        # leave one out: less noisy, very slow.
+        # leave one out: less noisy (operable), still slow.
         batch_size = X.shape[0]
         net_copy = deepcopy(self)
         net_copy.train_step(X, ys)
