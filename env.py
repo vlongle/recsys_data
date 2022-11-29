@@ -166,8 +166,13 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         fdataset_train = torchvision.datasets.FashionMNIST(
             root='./data', train=True, download=True, transform=torchvision.transforms.ToTensor(),
             target_transform=lambda x: x + 10)
+        
+        kdataset_train = torchvision.datasets.KMNIST(
+            root='./data', train=True, download=True, transform=torchvision.transforms.ToTensor(),
+            target_transform=lambda x: x + 20)
+        
         self.dataset_train = torch.utils.data.ConcatDataset(
-            [mdataset_train, fdataset_train])
+            [mdataset_train, fdataset_train, kdataset_train])
 
         mdataset_test = torchvision.datasets.MNIST(
             root='./data', train=False, download=True, transform=torchvision.transforms.ToTensor())
@@ -176,7 +181,7 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         self.y_test = torch.tensor([y for _, y in mdataset_test])
         self.batch_size = cfg.get("num_candidates", 32)
         self.num_slates = cfg.get("num_slates", 2)
-        self.num_tasks = 2
+        self.num_tasks = 3
         self.num_classes = 10
         self.max_steps = cfg.get("max_steps", np.inf)
         self.max_step = min(self.max_steps, len(

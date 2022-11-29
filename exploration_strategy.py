@@ -88,6 +88,12 @@ class UniformEpsilonExploration(ExplorationStrategy):
         self.step = 0
 
     def get_action(self, observations: np.ndarray, Q_values: np.ndarray):
+        # HACK: initially we should send a lot of data to get a good estimate of Q
+        if self.step <= 50:
+            num_slates = self.num_slates * 2
+        else:
+            num_slates = self.num_slates
+        # num_slates = self.num_slates
         explore_factor = self.epsilon
         weights = explore_factor + Q_values
         # replace nan by 1
@@ -101,7 +107,7 @@ class UniformEpsilonExploration(ExplorationStrategy):
         probs = weights / np.sum(weights)
         # sample without replacement if there's enough non-zero weights for num_slates
         # otherwise, send all non-zero weights
-        if np.sum(weights > 0) < self.num_slates:
+        if np.sum(weights > 0) < num_slates:
             print("sending all non-zero weights")
             action = np.nonzero(weights)[0]
             print()
@@ -109,10 +115,10 @@ class UniformEpsilonExploration(ExplorationStrategy):
             # (equally likely to be any batch)
             if action.shape[0] == 0:
                 action = np.random.choice(
-                    np.arange(observations.shape[0]), self.num_slates)
+                    np.arange(observations.shape[0]), num_slates)
         else:
             action = np.random.choice(
-                observations.shape[0], self.num_slates, p=probs, replace=False)
+                observations.shape[0], num_slates, p=probs, replace=False)
         return action
 
     def update(self, observations: np.ndarray, actions: np.ndarray):

@@ -105,6 +105,8 @@ final model loss: 0.43689852952957153
 final model accuracy: 0.873699963092804
 
 
+Also has to tune these guys very carefully for it to work better than baseline...
+
 
 
 

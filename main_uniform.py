@@ -58,23 +58,23 @@ if __name__ == "__main__":
 
     env = ImgRouterEvalEnv(cfg)
 
-    num_tasks = 2
+    num_tasks = 3
     num_cls = 10
-    reduce_fator = 8
+    reduce_fator = 2
     num_slates = num_candidates // reduce_fator
     # estimator = EmpiricalEstimator(num_tasks, num_cls)
     # estimator = NeuralEstimator(num_tasks, num_cls, use_img=use_img)
     # estimator = RecurrentNeuralEstimator(num_tasks, num_cls, use_img=use_img)
-    estimator = RecurrentNeuralEstimatorV0(
-        num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
+    # estimator = RecurrentNeuralEstimatorV0(
+    #     num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
 
-    # estimator = DummyEstimator(num_tasks, num_cls)
+    estimator = DummyEstimator(num_tasks, num_cls)
 
     # explore = PerArmExploration(num_tasks, num_cls, num_slates)
-    explore = UniformEpsilonExploration(
-        num_tasks, num_cls, num_slates, explore_cfg)
+    # explore = UniformEpsilonExploration(
+    #     num_tasks, num_cls, num_slates, explore_cfg)
 
-    # explore = RandomRouting(num_tasks, num_cls, num_slates)
+    explore = RandomRouting(num_tasks, num_cls, num_slates)
     algo = BanditAlgorithm(
         estimator,
         explore,

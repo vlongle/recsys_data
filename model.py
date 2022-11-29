@@ -7,7 +7,9 @@ import numpy as np
 class MNISTNet(nn.Module):
     def __init__(self, X_test, y_test) -> None:
         super().__init__()
-        self.num_classes = 20
+        self.num_classes_per_task = 10
+        self.num_tasks = 3
+        self.num_classes = self.num_classes_per_task * self.num_tasks
         self.embedding = nn.Sequential(
             nn.Conv2d(1, 16, 3, padding=1),
             nn.ReLU(),
