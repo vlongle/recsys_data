@@ -66,9 +66,12 @@ class EmpiricalEstimator(Estimator):
                 self.num_chosens[task, c] += np.sum(
                     (batch_tasks == task) & (batch_cls == c))
 
-        print("delta:")
-        print(delta)
         self.cum_rewards += delta
+        print("Q:", self.Q)
+        print("Q_task:", self.Q.mean(axis=1))
+        print("num_chosens:", self.num_chosens)
+        print("cum_rewards:", self.cum_rewards)
+        print("detla:", delta)
 
     def get_Q(self, observations: np.ndarray, eval=True):
         """
@@ -157,6 +160,14 @@ class NeuralEstimator(Estimator):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        # for debugging
+        obs = np.array([[task, c + 10 * task] for task in range(self.num_tasks)
+                       for c in range(self.num_cls)])
+        if not self.use_img:
+            Q = self.get_Q(obs, eval=True).reshape(
+                self.num_tasks, self.num_cls)
+            print("Q:", Q)
+            print("Q_task:", Q.mean(axis=1))
 
 
 class RecurrentNeuralEstimator(Estimator):
@@ -342,3 +353,12 @@ class RecurrentNeuralEstimatorV0(Estimator):
                 observations[actions]).float(), batch_first=False)
 
         self.step += 1
+
+        obs = np.array([[task, c + 10 * task] for task in range(self.num_tasks)
+                       for c in range(self.num_cls)])
+
+        if not self.use_img:
+            Q = self.get_Q(obs, eval=True).reshape(
+                self.num_tasks, self.num_cls)
+            print("Q:", Q)
+            print("Q_task:", Q.mean(axis=1))

@@ -248,10 +248,11 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         routed_batch_x, routed_batch_y, routed_batch_z = batch_x[
             action], batch_y[action], batch_z[action]
 
-        print("routed_batch_z", torch.unique(
-            routed_batch_z, return_counts=True, sorted=True))
         rewards = self.evaluate_fn(
             routed_batch_x, routed_batch_y)
+        print("routed_batch_z", torch.unique(
+            routed_batch_z, return_counts=True, sorted=True),)
+        # print("rewards", rewards)
 
         # update states
         routed_batch_y.apply_(lambda x: x % 10)

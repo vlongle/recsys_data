@@ -107,6 +107,7 @@ class MNISTNet(nn.Module):
         before_loss = self.test_step()
 
         rewards = np.zeros(batch_x.shape[0])
+        test_loss_task_list = {}  # for DEBUG
         for task in range(self.num_tasks):
             net_copy_task = deepcopy(self)
             batch_x_task = batch_x[batch_z == task]
@@ -114,5 +115,6 @@ class MNISTNet(nn.Module):
             net_copy_task.train_step(batch_x_task, batch_y_task)
             test_loss_task = net_copy_task.test_step()
             rewards[batch_z == task] = before_loss - test_loss_task
+            test_loss_task_list[task] = test_loss_task
 
         return rewards

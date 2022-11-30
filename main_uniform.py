@@ -33,9 +33,8 @@ if __name__ == "__main__":
     seed_everything(0)
     start = time.time()
     num_candidates = 256
-    # max_steps = 800
+    # max_steps = 10
     max_steps = 200
-    # max_steps = 200
     # max_steps = 8
     # use_img = True
     use_img = False
@@ -52,10 +51,14 @@ if __name__ == "__main__":
         "epsilon": 2.0,
         "min_epsilon": 0.01,
         "decay_factor": 0.9,
-        "exploit_factor": 4.0,
-        # "exploit_factor": 3.0,
+        # "decay_factor": 0.95,
         # "exploit_factor": 1.0,
+        "exploit_factor": 4.0,
     }
+
+    # explore_cfg = {
+
+    # }
 
     estimator_cfg = {
         "reset_period": 10,
@@ -65,14 +68,13 @@ if __name__ == "__main__":
 
     num_tasks = 3
     num_cls = 10
-    # reduce_fator = 2
     # reduce_fator = 8
     reduce_fator = 2
     num_slates = num_candidates // reduce_fator
-    # estimator = EmpiricalEstimator(num_tasks, num_cls, use_img=use_img)
-    # estimator = NeuralEstimator(num_tasks, num_cls, use_img=use_img)
-    estimator = RecurrentNeuralEstimatorV0(
-        num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
+    estimator = EmpiricalEstimator(num_tasks, num_cls, use_img=use_img)
+    estimator = NeuralEstimator(num_tasks, num_cls, use_img=use_img)
+    # estimator = RecurrentNeuralEstimatorV0(
+    #     num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
 
     # estimator = DummyEstimator(num_tasks, num_cls)
 
