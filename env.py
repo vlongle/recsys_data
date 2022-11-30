@@ -218,6 +218,9 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         else:
             return np.stack([batch_z.numpy(), batch_y.numpy()], axis=1)
 
+    def evaluate_usefulness_oracle(self):
+        pass
+
     def reset(self):
         self.model = MNISTNet(self.X_test, self.y_test)
         if self.evaluate_strategy == "uniform":
@@ -226,6 +229,10 @@ class ImgRouterEvalEnv(ImgRouterEnv):
             self.evaluate_fn = self.model.evaluate_usefulness_leave_one_out
         elif self.evaluate_strategy == "each_one":
             self.evaluate_fn = self.model.evaluate_usefulness_each_one
+        elif self.evaluate_strategy == "oracle":
+            self.evaluate_fn = self.evaluate_usefulness_oracle
+            # compute the target_samples
+
         else:
             raise ValueError("Invalid evaluate strategy")
 

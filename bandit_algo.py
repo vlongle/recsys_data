@@ -39,6 +39,7 @@ class BanditAlgorithm:
                                                              update_batch_size)
 
         self.estimator.update(observations, actions, rewards)
+        return
 
     def preprocess(self, observations: List[np.ndarray], actions, rewards, update_batch_size):
         assert len(observations) == len(actions) == len(

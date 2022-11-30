@@ -58,6 +58,7 @@ class EmpiricalEstimator(Estimator):
             actions.shape[0], ), "Rewards and actions must have the same shape."
         batch_tasks, batch_cls = get_batch_tasks_cls(observations, actions)
         delta = np.zeros((self.num_tasks, self.num_cls))
+        batch_cls = batch_cls % self.num_cls
         for task in range(self.num_tasks):
             for c in range(self.num_cls):
                 delta[task, c] = np.sum(
@@ -75,6 +76,8 @@ class EmpiricalEstimator(Estimator):
             observations: (batch_size, 2) array of (task, class) tuples.
         """
         batch_tasks, batch_cls = observations[:, 0], observations[:, 1]
+        # map batch_cls to lambda x: x % self.num_cls
+        batch_cls = batch_cls % self.num_cls
         return self.Q[batch_tasks, batch_cls]
 
 
@@ -95,10 +98,13 @@ class NeuralEstimator(Estimator):
             )  # 28x28 -> 4x7x7
             self.extra_encoder = nn.Linear(4 * 7 * 7, 32)
         else:
-            self.encoder = nn.Sequential(
-                nn.Linear(2, 32),
-                nn.ReLU(),
-            )
+            self.encoder = nn.Embedding(num_cls * num_tasks, 32,
+                                        max_norm=2,
+                                        norm_type=2)
+            # self.encoder = nn.Sequential(
+            #     nn.Linear(2, 32),
+            #     nn.ReLU(),
+            # )
         # given a task and a class, predict the Q value
         self.model = nn.Sequential(
             nn.Linear(32, 64),
@@ -118,7 +124,12 @@ class NeuralEstimator(Estimator):
               for p in params))
 
     def forward(self, x):
+        if not self.use_img:
+            # (batch_size, 2) -> (batch_size,) array of task * num_cls + class
+            x = x[:, 1].long()
         x = self.encoder(x)
+        if not self.use_img:
+            x = nn.ReLU()(x)
         if self.use_img:
             x = x.view(-1, 4 * 7 * 7)
             x = self.extra_encoder(x)
@@ -240,7 +251,10 @@ class RecurrentNeuralEstimatorV0(Estimator):
             )  # 28x28 -> 4x7x7
             self.internal_state_model = nn.LSTM(4 * 7 * 7, 64)
         else:
-            self.encoder = nn.Linear(2, 32)
+            # self.encoder = nn.Linear(2, 32)
+            self.encoder = nn.Embedding(num_cls * num_tasks, 32,
+                                        max_norm=2,
+                                        norm_type=2)
             # use a LSTM to predict the Q value
             self.internal_state_model = nn.LSTM(32, 64)
         self.model = nn.Sequential(
@@ -270,6 +284,9 @@ class RecurrentNeuralEstimatorV0(Estimator):
             is for updating the internal state.
         """
         # convert x to (seq_len=1, batch_size, 2)
+        if not self.use_img:
+            # (batch_size, 2) -> (batch_size,) array of task * num_cls + class
+            x = x[:, 1].long()
         x = self.encoder(x)
         if self.use_img:
             x = x.view(-1, 4 * 7 * 7)

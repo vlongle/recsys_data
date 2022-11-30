@@ -13,6 +13,7 @@ from exploration_strategy import (
     PerArmExploration,
     UniformEpsilonExploration,
     RandomRouting,
+    PureExploitative,
 )
 import numpy as np
 
@@ -34,6 +35,7 @@ if __name__ == "__main__":
     num_candidates = 256
     # max_steps = 800
     max_steps = 200
+    # max_steps = 200
     # max_steps = 8
     # use_img = True
     use_img = False
@@ -51,6 +53,7 @@ if __name__ == "__main__":
         "min_epsilon": 0.01,
         "decay_factor": 0.9,
         "exploit_factor": 4.0,
+        # "exploit_factor": 3.0,
         # "exploit_factor": 1.0,
     }
 
@@ -67,10 +70,9 @@ if __name__ == "__main__":
     reduce_fator = 2
     num_slates = num_candidates // reduce_fator
     # estimator = EmpiricalEstimator(num_tasks, num_cls, use_img=use_img)
-    estimator = NeuralEstimator(num_tasks, num_cls, use_img=use_img)
-    # estimator = RecurrentNeuralEstimator(num_tasks, num_cls, use_img=use_img)
-    # estimator = RecurrentNeuralEstimatorV0(
-    #     num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
+    # estimator = NeuralEstimator(num_tasks, num_cls, use_img=use_img)
+    estimator = RecurrentNeuralEstimatorV0(
+        num_tasks, num_cls, use_img=use_img, cfg=estimator_cfg)
 
     # estimator = DummyEstimator(num_tasks, num_cls)
 
@@ -79,6 +81,9 @@ if __name__ == "__main__":
         num_tasks, num_cls, num_slates, explore_cfg)
 
     # explore = RandomRouting(num_tasks, num_cls, num_slates)
+
+    # explore = PureExploitative(num_tasks, num_cls, num_slates, explore_cfg)
+
     algo = BanditAlgorithm(
         estimator,
         explore,

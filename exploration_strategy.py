@@ -145,3 +145,15 @@ class RandomRouting(ExplorationStrategy):
 
     def update(self, observations: np.ndarray, actions: np.ndarray):
         pass
+
+
+class PureExploitative(ExplorationStrategy):
+    def __init__(self, num_tasks, num_cls, num_slates, cfg={}):
+        self.num_slates = num_slates
+
+    def get_action(self, observations: np.ndarray, Q_values: np.ndarray):
+        num_slates = min(self.num_slates, observations.shape[0])
+        return np.argsort(Q_values)[-num_slates:]
+
+    def update(self, observations: np.ndarray, actions: np.ndarray):
+        pass

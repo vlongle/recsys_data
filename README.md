@@ -183,3 +183,100 @@ TODO: use_img = False is BROKEN for neural estimator and recurrent estimator now
 
 rewards and stuff are all WRONG!!!
 bs
+
+
+
+Exploit vs explore + exploit
+
+Explore + exploit: exploit_factor = 4, NN, reduce_factor=2
+
+[1323. 1578. 1573. 1714. 1566. 1512. 1592. 1629. 1444. 1368.]
+ [1527. 1532. 1492. 1324. 1019.  627.  342.  259.  161.  148.]
+ [ 318.  264.  205.  209.  167.  151.  143.  153.  132.  128.]]
+[15299.  8431.  1870.]
+reward: 0.8757922601699829
+final model accuracy: 0.8307999968528748
+
+exploit: 
+
+
+
+NOTE: use_img = False might still be buggy since [1, 0] classes still have a large routing for some reasons...
+
+[1, 0], [1, 1], [1, 2], [1, 3], [1, 4]
+
+
+batch_y is still wrong...
+
+
+Somehow NN is biased towards task 1 now with use_img = False. Some sort of weird embedding with the tasks probably.
+Move to nn.embedding to solve this problem!
+
+New NN: explore + exploit
+    [[1573. 1749. 1496. 1581. 1454. 1362. 1543. 1664. 1503. 1535.]
+    [ 386.  294.  625.  319.  418.  670.  227.  602.  654.  451.]
+    [ 478.  664.  463.  747.  555.  517.  912.  485.  369.  304.]]
+    [15460.  4646.  5494.]
+    reward: 1.215169062614441
+
+New NN: only exploit
+[[ 932.  132.  517.  864.  332.   59.  302.  303.    0.    0.]
+ [   0. 1248. 1619.  228.  658. 1648.   44. 1687. 1741.   36.]
+ [1635.  571. 1260. 1709.    0. 1656. 1679. 1623. 1709. 1408.]]
+[ 3441.  8909. 13250.]
+reward: 1.936470284461975
+final model accuracy: 0.15539999306201935
+It's bad! which is good for us! but it doesn't follow the pattern I was expecting...
+Needs to re-check this...
+
+EmpiricalEstimator:
+current samples after training:
+[[1534. 1778. 1594. 1598. 1552. 1396. 1503. 1660. 1540. 1547.]
+ [ 534.  472.  475.  470.  504.  518.  544.  504.  432.  551.]
+ [ 543.  540.  397.  478.  456.  465.  519.  464.  532.  500.]]
+[15702.  5004.  4894.]
+reward: 0.9261571273207665
+final model accuracy: 0.7983999848365784
+
+
+EmpiricalEstimator: only exploit
+urrent samples after training:
+[[1641. 1906. 1713. 1727. 1693. 1523. 1624. 1807. 1658. 1681.]
+ [1732. 1570.   10.   10.  315. 1571.   11. 1351.  459. 1548.]
+ [   3.    2.    5.    6.    6.    4.    5.    4.    9.    6.]]
+[16973.  8577.    50.]
+reward: 1.3606654107570648
+final model accuracy: 0.7609999775886536
+time(s) : 18.928626775741577
+TODO: look at the trace to verify why pure exploitation is bad.
+
+
+Random:
+[[788. 943. 863. 859. 853. 754. 818. 908. 872. 843.]
+ [875. 838. 834. 837. 897. 836. 845. 836. 840. 828.]
+ [899. 850. 889. 845. 843. 860. 847. 873. 896. 831.]]
+[8501. 8466. 8633.]
+reward: 0.4124806725978851
+final model accuracy: 0.6301999688148499
+
+
+RNN (before the embedding fix)
+
+current samples after training:
+[[1462. 1669. 1431. 1506. 1435. 1418. 1524. 1621. 1479. 1537.]
+ [1492. 1408. 1282. 1044.  846.  679.  549.  490.  415.  349.]
+ [ 242.  229.  187.  216.  171.  203.  207.  166.  180.  163.]]
+[15082.  8554.  1964.]
+reward: 0.8803443545103073
+final model accuracy: 0.8504999876022339
+
+RNN (after the fix!!)
+
+current samples after training:
+[[1540. 1716. 1602. 1588. 1549. 1439. 1590. 1650. 1502. 1503.]
+ [ 369.  168.  487.  685.  379.  434.  692.  147.  519.  415.]
+ [ 210.  711.  730.  552.  438.  697.  414.  656.  492.  726.]]
+[15679.  4295.  5626.]
+reward: 0.8368818444013596
+final model accuracy: 0.7346000075340271
+
