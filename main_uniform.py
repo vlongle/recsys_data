@@ -35,8 +35,8 @@ if __name__ == "__main__":
     # max_steps = 800
     max_steps = 200
     # max_steps = 8
-    use_img = True
-    # use_img = False
+    # use_img = True
+    use_img = False
     cfg = {
         "num_candidates": num_candidates,
         "max_steps": max_steps,
@@ -105,18 +105,18 @@ if __name__ == "__main__":
 
         # algo.update_estimator(, cum_action,
         #                           cum_rewards, update_batch_size=update_period)
-        cum_obs.append(obs)
-        cum_action.append(action)
-        cum_rewards.append(info["rewards"])
+        # cum_obs.append(obs)
+        # cum_action.append(action)
+        # cum_rewards.append(info["rewards"])
 
-        # TODO: will requires some changes to the update_estimator to handle batches of data
-        # update like this...
-        if len(cum_obs) >= update_period:
-            algo.update_estimator(cum_obs, cum_action,
-                                  cum_rewards, update_batch_size=update_period)
-            cum_obs = []
-            cum_action = []
-            cum_rewards = []
+        # # TODO: will requires some changes to the update_estimator to handle batches of data
+        # # update like this...
+        # if len(cum_obs) >= update_period:
+        #     algo.update_estimator(cum_obs, cum_action,
+        #                           cum_rewards, update_batch_size=update_period)
+        #     cum_obs = []
+        #     cum_action = []
+        #     cum_rewards = []
 
         obs = next_obs
         step_rewards.append(reward)

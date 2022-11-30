@@ -13,6 +13,7 @@ from typing import (
 import numpy as np
 from utils import get_batch_tasks_cls
 from model import MNISTNet
+from copy import deepcopy
 
 
 class RouterEnv(gym.Env):
@@ -192,12 +193,13 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         self.evaluate_strategy = cfg.get("evaluate_strategy", "uniform")
 
     def _get_full_obs(self) -> Tuple:
+        # z in [0, num_tasks), y in [0, num_classes_per_task * num_tasks)
         batch_idx = self.dataset_stream_idx[self.env_step *
                                             self.batch_size:(self.env_step + 1) * self.batch_size]
         batch = [self.dataset_train[i] for i in batch_idx]
         batch_x = torch.stack([x for x, _ in batch])
         batch_y = torch.tensor([y for _, y in batch])
-        batch_z = batch_y.clone()
+        batch_z = deepcopy(batch_y)
         batch_z.apply_(lambda x: x // 10)
         # return batch_x.numpy(), batch_z.numpy(), batch_y.numpy()
         return batch_x, batch_z, batch_y
@@ -206,9 +208,11 @@ class ImgRouterEvalEnv(ImgRouterEnv):
         """
         Returns:
             (batch_size, 2) array of (task, class) tuples.
+
+        z in [0, num_tasks), y in [0, num_classes_per_task * num_tasks)
         """
         batch_x, batch_z, batch_y = self._get_full_obs()
-        batch_y.apply_(lambda x: x % 10)
+        # batch_y.apply_(lambda x: x % 10)
         if self.use_img:
             return batch_x.numpy()
         else:

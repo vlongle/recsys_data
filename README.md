@@ -124,9 +124,9 @@ TODO:
 2. Plot the number of data points sent per tasks!
 3. Final paper: 
 - exploration vs purely exploitative
-- Image vs no image
-- Plot rewards, model loss and data routing
-- Communication bandwidth.
+- Image vs no image 
+- Plot rewards, model loss and data routing [Done]
+- Communication bandwidth. [Done]
 - compare different evaluation method
 
 
@@ -177,3 +177,9 @@ update_period code might be buggy...
 
 
 TODO: move actions out of update function in preference_estimator.
+
+
+TODO: use_img = False is BROKEN for neural estimator and recurrent estimator now...
+
+rewards and stuff are all WRONG!!!
+bs
